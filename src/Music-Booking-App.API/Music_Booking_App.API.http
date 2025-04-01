@@ -1,0 +1,6 @@
+@Hub_Service.API_HostAddress = http://localhost:5002
+
+GET {{Music_Booking_App.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
