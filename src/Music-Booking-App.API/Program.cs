@@ -80,6 +80,7 @@ namespace Music_Booking_App.API
             builder.Services.AddTransient<IAuthenticationService, AuthenticationService>();
             builder.Services.AddTransient<INotificationService, NotificationService>();
             builder.Services.AddTransient<ITeamMemberService, TeamMemberService>();
+            builder.Services.AddTransient<IBookingService, BookingService>();
 
             builder.Services.AddTransient<IOtpService, OtpService>();
             builder.Services.AddTransient<ITokenService, TokenService>();
@@ -92,10 +93,18 @@ namespace Music_Booking_App.API
             builder.Services.AddTransient<IDapperCommandRepository<User>, DapperCommandRepository<User>>();
             builder.Services.AddTransient<IDapperQueryRepository<OTP>, DapperQueryRepository<OTP>>();
             builder.Services.AddTransient<IDapperCommandRepository<OTP>, DapperCommandRepository<OTP>>();
+            builder.Services.AddTransient<IDapperQueryRepository<Artiste>, DapperQueryRepository<Artiste>>();
+            builder.Services.AddTransient<IDapperCommandRepository<Artiste>, DapperCommandRepository<Artiste>>();
+            builder.Services.AddTransient<IDapperQueryRepository<Event>, DapperQueryRepository<Event>>();
+            builder.Services.AddTransient<IDapperCommandRepository<Event>, DapperCommandRepository<Event>>();
+            builder.Services.AddTransient<IDapperQueryRepository<Booking>, DapperQueryRepository<Booking>>();
+            builder.Services.AddTransient<IDapperCommandRepository<Booking>, DapperCommandRepository<Booking>>();
+            builder.Services.AddTransient<IDapperQueryRepository<Ticket>, DapperQueryRepository<Ticket>>();
+            builder.Services.AddTransient<IDapperCommandRepository<Ticket>, DapperCommandRepository<Ticket>>();
 
             builder.Services.AddTransient<ITestValidator, TestValidator>();
             builder.Services.AddTransient<IAuthenticationValidator, AuthenticationValidator>();
-
+            builder.Services.AddTransient<IBookingValidator, BookingValidator>();
 
             builder.Services.AddScoped<IValidator<CreateTestRequestModel>, TestRequestModelValidator>();
             builder.Services.AddScoped<IValidator<UpdateTestRequestModel>, UpdateTestRequestModelValidator>();
@@ -106,6 +115,8 @@ namespace Music_Booking_App.API
             builder.Services.AddTransient<IValidator<LoginRequestModel>, LoginRequestModelValidator>();
             builder.Services.AddTransient<IValidator<ResetPasswordRequestModel>, ResetPasswordRequestModelValidator>();
             builder.Services.AddTransient<IValidator<ChangePasswordRequestModel>, ChangePasswordRequestModelValidator>();
+            builder.Services.AddTransient<IValidator<CreateArtisteRequestModel>, CreateArtisteRequestValidator>();
+            builder.Services.AddTransient<IValidator<CreateEventRequestModel>, CreateEventRequestValidator>();
 
             builder.Services.AddAutoMapper(typeof(AutoMapperProfile));
 

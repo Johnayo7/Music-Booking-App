@@ -1,6 +1,6 @@
-﻿using Music_Booking_App.Services.Authentication.Interfaces;
-using MailKit.Net.Smtp;
+﻿using MailKit.Net.Smtp;
 using MimeKit;
+using Music_Booking_App.Services.Authentication.Interfaces;
 
 namespace Music_Booking_App.Services.Authentication.Implementations
 {
@@ -14,12 +14,20 @@ namespace Music_Booking_App.Services.Authentication.Implementations
         }
 
 
-        public async Task SendEmailAsync(string recipientEmail, string subject, string otp)
+        public async Task SendEmailAsync(string recipientEmail, string subject, string value)
         {
             string message = string.Empty;
             if (subject.ToLower() == "verify email address")
             {
-                message = ComposeOTPSignUpMail(otp);
+                message = ComposeOTPSignUpMail(value);
+            }
+            if (subject.ToLower() == "forgot password")
+            {
+                message = ComposeForgetPasswordMail(value);
+            }
+            if (subject.ToLower() == "admin forgot password")
+            {
+                message = ComposeAdminForgetPasswordMail(value);
             }
 
             #region Others
@@ -48,6 +56,44 @@ namespace Music_Booking_App.Services.Authentication.Implementations
              <p>If you did not sign up for an account with us, please disregard this email.</p>
              </body>
              </html>";
+
+            return message;
+        }
+
+        private static string ComposeForgetPasswordMail(string otp)
+        {
+            string message = $@"<html>
+        <body>
+        <p>Hello there,</p>
+        <p>We received a request to reset your password. To proceed with the reset, please use the OTP provided below:</p>
+        <p>Your OTP: <strong>{otp}</strong></p>
+        <p>This OTP is valid for a limited time. For security reasons, please do not share this code with anyone.</p>
+        <p style=""margin-top: 1em;""></p>
+        <p>Best Regards,</p>
+        <p>Mondu Team</p>
+        <p style=""margin-top: 1em;""></p>
+        <p><strong>NB:</strong> If you did not request a password reset, please ignore this email, and your account will remain secure.</p>
+        </body>
+        </html>";
+
+            return message;
+        }
+
+        private static string ComposeAdminForgetPasswordMail(string defaultPass)
+        {
+            string message = $@"<html>
+        <body>
+        <p>Hello there,</p>
+        <p>We received a request to reset your password. To proceed with the reset, please use the default password provided below:</p>
+        <p>Your Default Password: <strong>{defaultPass}</strong></p>
+        <p>For security reasons, please do not share this code with anyone.</p>
+        <p style=""margin-top: 1em;""></p>
+        <p>Best Regards,</p>
+        <p>Mondu Team</p>
+        <p style=""margin-top: 1em;""></p>
+        <p><strong>NB:</strong> If you did not request a password reset, please ignore this email, and your account will remain secure.</p>
+        </body>
+        </html>";
 
             return message;
         }

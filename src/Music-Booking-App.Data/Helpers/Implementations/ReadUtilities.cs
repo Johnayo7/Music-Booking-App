@@ -1,9 +1,9 @@
 ﻿
 
+using Microsoft.Extensions.Configuration;
 using Music_Booking_App.Data.Extensions;
 using Music_Booking_App.Data.Helpers.Interfaces;
 using Music_Booking_App.Models.Enums;
-using Microsoft.Extensions.Configuration;
 using System.Text;
 
 namespace Music_Booking_App.Data.Helpers.Implementations
@@ -66,6 +66,56 @@ namespace Music_Booking_App.Data.Helpers.Implementations
                 selectQuery.Append($"\"{columnName}\" = '{item.Value.Trim()}' ");
                 if (criteria.Count > count) selectQuery.Append("AND ");
                 count++;
+            }
+
+            return $"{selectQuery} ORDER BY \"CreationDate\" DESC LIMIT {pageSize} OFFSET {(pageNumber - 1) * pageSize}";
+        }
+
+        public string GenerateSelectWhereQueryPartialMatch<TEntity>(Dictionary<string, string> criteria, int pageNumber, int pageSize)
+    where TEntity : class
+        {
+            var tableName = typeof(TEntity).GetReadTableName();
+            criteria.TryAdd("IsDeleted", "false"); // Ensure non-deleted records
+            var selectQuery = new StringBuilder($"SELECT * FROM {tableName} WHERE ");
+
+            string[] exactMatchColumns = { "IsDeleted", "Status", "AccountStatus", "EventStatus" };
+            string[] partialMatchWithCasting = { "Name", "Genre", "Location", "OrganizerName" };
+
+            var conditions = new List<string>();
+            var partialMatchConditions = new List<string>();
+
+            foreach (var item in criteria)
+            {
+                var columnName = char.ToUpper(item.Key[0]) + item.Key.Substring(1);
+                if (exactMatchColumns.Contains(columnName))
+                {
+                    conditions.Add($"\"{columnName}\" = '{item.Value.Trim()}' ");
+                }
+                else if (partialMatchWithCasting.Contains(columnName))
+                {
+                    partialMatchConditions.Add($"CAST(\"{columnName}\" AS TEXT) ILIKE '%{item.Value.Trim()}%' ");
+                }
+                else
+                {
+                    partialMatchConditions.Add($"\"{columnName}\" ILIKE '%{item.Value.Trim()}%' ");
+                }
+            }
+
+            if (partialMatchConditions.Any())
+            {
+                selectQuery.Append("(").Append(string.Join(" OR ", partialMatchConditions)).Append(")");
+            }
+            else
+            {
+                // If no partial match criteria is found, force query to return zero results
+                return "SELECT * FROM " + tableName + " WHERE 1 = 0";
+            }
+
+            // Add "IsDeleted" condition after ensuring valid partial match conditions exist
+            var isDeletedCondition = conditions.FirstOrDefault(c => c.Contains("\"IsDeleted\""));
+            if (!string.IsNullOrEmpty(isDeletedCondition))
+            {
+                selectQuery.Append(" AND ").Append(isDeletedCondition);
             }
 
             return $"{selectQuery} ORDER BY \"CreationDate\" DESC LIMIT {pageSize} OFFSET {(pageNumber - 1) * pageSize}";

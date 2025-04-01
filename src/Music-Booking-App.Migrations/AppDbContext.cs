@@ -1,9 +1,9 @@
 ﻿
-using Music_Booking_App.Models.Entiites;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Music_Booking_App.Models.Entiites;
 
 namespace Music_Booking_App.Migrations
 {
@@ -14,6 +14,10 @@ namespace Music_Booking_App.Migrations
         public DbSet<Test> Tests { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<OTP> OTPs { get; set; }
+        public DbSet<Artiste> Artistes { get; set; }
+        public DbSet<Event> Events { get; set; }
+        public DbSet<Booking> Bookings { get; set; }
+        public DbSet<Ticket> Tickets { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -40,8 +44,10 @@ namespace Music_Booking_App.Migrations
             ApplyTimeStampConversion(modelBuilder.Entity<Test>());
             ApplyTimeStampConversion(modelBuilder.Entity<User>());
             ApplyTimeStampConversion(modelBuilder.Entity<OTP>());
-
-
+            ApplyTimeStampConversion(modelBuilder.Entity<Artiste>());
+            ApplyTimeStampConversion(modelBuilder.Entity<Booking>());
+            ApplyTimeStampConversion(modelBuilder.Entity<Event>());
+            ApplyTimeStampConversion(modelBuilder.Entity<Ticket>());
 
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {

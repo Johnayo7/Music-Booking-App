@@ -1,4 +1,6 @@
 ﻿using AutoMapper;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Music_Booking_App.Core.Constants;
 using Music_Booking_App.Core.Helpers;
 using Music_Booking_App.Data.Commands.Interfaces;
@@ -11,8 +13,6 @@ using Music_Booking_App.Services.Authentication.Interfaces;
 using Music_Booking_App.Services.BL.Interfaces;
 using Music_Booking_App.Services.BL.InternalProviders.NotificationMs;
 using Music_Booking_App.Services.Helpers;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
 using Serilog;
 using System.Security.Claims;
 using StatusCodes = Music_Booking_App.Core.Constants.StatusCodes;
@@ -84,7 +84,8 @@ namespace Music_Booking_App.Services.BL.Implementations
                     }
                     user.DefaultPassword = defaultPassword;
                     await _userService.UpdateAsync(user);
-                    await _notifyMs.SendEmailAsync(request.Email, EmailTemplates.AdminForgotPassword.ToString(), defaultPassword);
+                    await _otpService.SendEmailAsync(request.Email, "Admin Forgot Password", defaultPassword);
+                    // await _notifyMs.SendEmailAsync(request.Email, EmailTemplates.AdminForgotPassword.ToString(), defaultPassword);
                 }
                 else
                 {
@@ -121,12 +122,13 @@ namespace Music_Booking_App.Services.BL.Implementations
                         await _otpCommandRepository.AddAsync(otpDetails);
                     }
 
-                    //await _otpService.SendEmailAsync(request.Email, "Verify Email Address", otp);
                     if (request.AuthType == EmailTemplates.SendOtp)
-                        await _notifyMs.SendEmailAsync(request.Email, EmailTemplates.SendOtp.ToString(), otp);
+                        await _otpService.SendEmailAsync(request.Email, "Verify Email Address", otp);
+                    //await _notifyMs.SendEmailAsync(request.Email, EmailTemplates.SendOtp.ToString(), otp);
 
                     if (request.AuthType == EmailTemplates.ForgotPassword)
-                        await _notifyMs.SendEmailAsync(request.Email, EmailTemplates.ForgotPassword.ToString(), otp);
+                        await _otpService.SendEmailAsync(request.Email, "Forgot Password", otp);
+                    //await _notifyMs.SendEmailAsync(request.Email, EmailTemplates.ForgotPassword.ToString(), otp);
                 }
 
                 Log.Information($"OTP sent successfully to email: {request.Email}.");
@@ -360,9 +362,19 @@ namespace Music_Booking_App.Services.BL.Implementations
                 user.UserName = request.Email;
                 //user.OrganizationName = request.OrganizationName;
                 //user.IsAdmin = request.IsAdmin;
+                user.UserCategory = request.UserCategory.ToString();
                 user.IsActive = true;
                 user.LastUpdateDate = DateTime.UtcNow;
                 user.SecurityStamp = Guid.NewGuid().ToString();
+
+                if (user.UserCategory == UserCategory.Artiste.ToString() || user.UserCategory == UserCategory.EventOrganizer.ToString())
+                {
+                    user.AccountStatus = AccountStatus.Pending.ToString();
+                }
+                else
+                {
+                    user.AccountStatus = AccountStatus.Active.ToString();
+                }
 
                 await _userService.UpdateAsync(user);
                 Log.Information($"User successfully signed up and updated for email: {request.Email}");
@@ -448,7 +460,7 @@ namespace Music_Booking_App.Services.BL.Implementations
                 user.AccessFailedCount = 0;
                 user.IsActive = true;
                 user.LastLoginDate = DateTime.UtcNow;
-                user.AccountStatus = AccountStatus.Active.ToString();
+                //user.AccountStatus = AccountStatus.Active.ToString();
                 //user.SecurityStamp = Guid.NewGuid().ToString();
                 await _userService.UpdateAsync(user);
 
