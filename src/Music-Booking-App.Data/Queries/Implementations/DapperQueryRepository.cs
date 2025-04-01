@@ -1,10 +1,10 @@
-﻿using Music_Booking_App.Data.Executers.Interfaces;
+﻿using Microsoft.Extensions.Configuration;
+using Music_Booking_App.Data.Executers.Interfaces;
 using Music_Booking_App.Data.Extensions;
 using Music_Booking_App.Data.Helpers;
 using Music_Booking_App.Data.Helpers.Interfaces;
 using Music_Booking_App.Data.Queries.Interfaces;
 using Music_Booking_App.Models.Enums;
-using Microsoft.Extensions.Configuration;
 
 namespace Music_Booking_App.Data.Queries.Implementations
 {
@@ -48,6 +48,14 @@ namespace Music_Booking_App.Data.Queries.Implementations
             int pageNumber)
         {
             var query = _utilities.GenerateSelectWhereQuery<TEntity>(criteria, pageNumber, pageSize);
+            var entities = await _executer.ExecuteReaderAsync<TEntity>(_connStr, query, null);
+            return entities;
+        }
+
+        public async Task<IEnumerable<TEntity>> GetByAsyncForPartialMatch(Dictionary<string, string> criteria, int pageSize,
+       int pageNumber)
+        {
+            var query = _utilities.GenerateSelectWhereQueryPartialMatch<TEntity>(criteria, pageNumber, pageSize);
             var entities = await _executer.ExecuteReaderAsync<TEntity>(_connStr, query, null);
             return entities;
         }

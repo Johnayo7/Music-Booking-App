@@ -1,6 +1,4 @@
-﻿
-
-using System.ComponentModel;
+﻿using Music_Booking_App.Models.Enums;
 
 namespace Music_Booking_App.Models.RequestModels
 {
@@ -8,9 +6,7 @@ namespace Music_Booking_App.Models.RequestModels
     {
         public string Name { get; set; }
         public string Email { get; set; }
-        // [DefaultValue(false)]
-        //public bool IsSuperAdmin { get; set; }
-        //public string DefaultPassword { get; set; }
+        public UserCategory UserCategory { get; set; }
         public string Password { get; set; }
         public string ConfirmPassword { get; set; }
     }

@@ -1,13 +1,13 @@
 ﻿
 
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using Music_Booking_App.Core.Helpers;
 using Music_Booking_App.Data.Commands.Interfaces;
 using Music_Booking_App.Data.Queries.Interfaces;
 using Music_Booking_App.Models.Entiites;
 using Music_Booking_App.Services.Authentication.Configurations;
 using Music_Booking_App.Services.Authentication.Interfaces;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -40,16 +40,14 @@ namespace Music_Booking_App.Services.Authentication.Implementations
             {
                 new (ClaimTypes.Sid, user.Id.ToString()),
                 new (ClaimTypes.Email, user.Email!),
-                new (ClaimTypes.NameIdentifier, user.UserName!),
-                new (ClaimTypes.SerialNumber, user.OrganizationId.ToString()!),
+                new (ClaimTypes.Name, user.Name!),
                 new ("SecurityStamp", user.SecurityStamp)
             };
 
             // Conditionally add applicant_id and external_userId if they are not null
             claims.AddRange(new[]
             {
-                string.IsNullOrWhiteSpace(user.ApplicantId) ? null: new Claim("applicant_id", user.ApplicantId),
-                string.IsNullOrWhiteSpace(user.ExternalUserId) ? null: new Claim("external_userId", user.ExternalUserId)
+                string.IsNullOrWhiteSpace(user.UserCategory) ? null: new Claim(ClaimTypes.Role, user.UserCategory)
             }.Where(c => c != null));
 
             var tokenLifetime = isRememberMe ? TimeSpan.FromDays(30).TotalSeconds : _jwtOption.TokenLifeTime;

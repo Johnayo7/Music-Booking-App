@@ -1,8 +1,8 @@
 ﻿
+using AutoMapper;
 using Music_Booking_App.Models.Entiites;
 using Music_Booking_App.Models.RequestModels;
 using Music_Booking_App.Models.ViewModels;
-using AutoMapper;
 
 namespace Music_Booking_App.Services.Helpers
 {
@@ -24,6 +24,13 @@ namespace Music_Booking_App.Services.Helpers
 
             CreateMap<User, PasswordViewModel>();
             CreateMap<User, TeamMemberViewModel>();
+
+            CreateMap<CreateArtisteRequestModel, Artiste>();
+            CreateMap<CreateEventRequestModel, Event>();
+            CreateMap<Artiste, ArtistesViewModel>();
+            CreateMap<Artiste, ArtisteDetailViewModel>();
+            CreateMap<Event, EventDetailsViewModel>();
+            CreateMap<Event, EventsViewModel>();
         }
     }
 }

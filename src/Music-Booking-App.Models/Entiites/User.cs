@@ -20,6 +20,7 @@ namespace Music_Booking_App.Models.Entiites
         public bool EmailConfirmed { get; set; }
         public bool IsSuperAdmin { get; set; }
         public bool IsDeactivated { get; set; }
+        public string UserCategory { get; set; }
 
 
         public DateTime? LastLoginDate { get; set; }
@@ -32,7 +33,7 @@ namespace Music_Booking_App.Models.Entiites
         public string ExternalUserId { get; set; }
 
         // Account status property
-        public string AccountStatus { get; set; }
+        public string AccountStatus { get; set; } //= Enums.AccountStatus.Pending.ToString();
 
         // Lockout properties
         public int AccessFailedCount { get; set; } = 0;

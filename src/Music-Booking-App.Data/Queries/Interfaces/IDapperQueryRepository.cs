@@ -10,6 +10,7 @@ namespace Music_Booking_App.Data.Queries.Interfaces
         Task<IEnumerable<TEntity>> GetAllAsync(int pageSize, int pageNumber);
         IEnumerable<TEntity> GetBy(string query, DataSource dataSource);
         Task<IEnumerable<TEntity>> GetByAsync(Dictionary<string, string> criteria, int pageSize, int pageNumber);
+        Task<IEnumerable<TEntity>> GetByAsyncForPartialMatch(Dictionary<string, string> criteria, int pageSize, int pageNumber);
         Task<TEntity?> GetByDefaultAsync(Dictionary<string, string> criteria);
         Task<int> GetCountAsync(Dictionary<string, string> criteria);
         Task<int> GetCountAsync();

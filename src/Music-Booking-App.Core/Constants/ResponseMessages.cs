@@ -32,6 +32,7 @@ namespace Music_Booking_App.Core.Constants
 
         public const string InternalServerError = "Server Error, try again.";
         public const string UnauthorizedOrganizationAccess = "You do not have authorization to create an organization with the specified credentials.";
+        public const string UnauthorizedAccess = "You do not have permission to access this resource.";
 
         public const string DuplicateKeyMessage = "duplicate key value";
         public const string DuplicateAccountNumber =

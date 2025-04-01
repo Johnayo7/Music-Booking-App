@@ -19,6 +19,8 @@ namespace Music_Booking_App.Data.Helpers.Interfaces
 
         string GenerateSelectInQuery<TEntity>(KeyValuePair<string, List<string>> criteria, int pageSize, int pageNumber)
             where TEntity : class;
+        string GenerateSelectWhereQueryPartialMatch<TEntity>(Dictionary<string, string> criteria, int pageNumber, int pageSize)
+    where TEntity : class;
 
         string GenerateSelectCountQuery<TEntity>() where TEntity : class;
 

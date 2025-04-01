@@ -1,6 +1,6 @@
 ﻿
-using Music_Booking_App.Models.RequestModels;
 using FluentValidation;
+using Music_Booking_App.Models.RequestModels;
 
 namespace Music_Booking_App.Models.Helpers.Validators
 {
@@ -27,16 +27,11 @@ namespace Music_Booking_App.Models.Helpers.Validators
                     .NotEmpty().WithMessage("Email address is required.")
                     .Length(5, 50).WithMessage("Email address must be within 5 to 50 characters.")
                     .EmailAddress().WithMessage("Invalid email address format.");
-            /* RuleFor(model => model.DefaultPassword)
-                     .NotNull()
-                     .NotEmpty()
-                     .MinimumLength(8)
-                     .WithMessage("{PropertyName} must be at least 8 characters long.")
-                     .Matches("[0-9]").WithMessage("{PropertyName} must contain at least one digit.")
-                     .Matches("[a-z]").WithMessage("{PropertyName} must contain at least one lowercase letter.")
-                     .Matches("[A-Z]").WithMessage("{PropertyName} must contain at least one uppercase letter.")
-                     .Matches("[^a-zA-Z0-9]").WithMessage("{PropertyName} must contain at least one non-alphanumeric character.");
- */
+
+            RuleFor(x => x.UserCategory)
+                    .IsInEnum()
+                    .WithMessage("Invalid user category. Accepted values: RegularUser, EventOrganizer, Artiste.");
+
             RuleFor(model => model.Password)
                     .NotNull()
                     .NotEmpty()

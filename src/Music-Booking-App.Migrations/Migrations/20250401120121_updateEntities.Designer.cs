@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Music_Booking_App.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Music_Booking_App.Migrations.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250401120121_updateEntities")]
+    partial class updateEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -27,9 +30,6 @@ namespace Music_Booking_App.Migrations.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
-
-                    b.Property<string>("AccountStatus")
-                        .HasColumnType("text");
 
                     b.Property<string>("Bio")
                         .HasColumnType("text");
@@ -76,11 +76,8 @@ namespace Music_Booking_App.Migrations.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("ArtisteId")
+                    b.Property<Guid>("ArtistId")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("ArtisteName")
-                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreationDate")
                         .HasColumnType("timestamp with time zone");
@@ -91,9 +88,6 @@ namespace Music_Booking_App.Migrations.Migrations
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("EventName")
-                        .HasColumnType("text");
-
                     b.Property<Guid>("EventOrganizerId")
                         .HasColumnType("uuid");
 
@@ -102,9 +96,6 @@ namespace Music_Booking_App.Migrations.Migrations
 
                     b.Property<DateTime?>("LastUpdateDate")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("OrganizerName")
-                        .HasColumnType("text");
 
                     b.Property<decimal>("ProposedAmount")
                         .HasPrecision(18, 2)
@@ -142,9 +133,6 @@ namespace Music_Booking_App.Migrations.Migrations
                     b.Property<Guid>("EventOrganizerId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("EventStatus")
-                        .HasColumnType("text");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
@@ -155,9 +143,6 @@ namespace Music_Booking_App.Migrations.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Name")
-                        .HasColumnType("text");
-
-                    b.Property<string>("OrganizerName")
                         .HasColumnType("text");
 
                     b.Property<decimal>("TicketPrice")
@@ -261,9 +246,6 @@ namespace Music_Booking_App.Migrations.Migrations
                     b.Property<Guid>("BuyerId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("BuyerName")
-                        .HasColumnType("text");
-
                     b.Property<DateTime>("CreationDate")
                         .HasColumnType("timestamp with time zone");
 
@@ -272,9 +254,6 @@ namespace Music_Booking_App.Migrations.Migrations
 
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("EventName")
-                        .HasColumnType("text");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
