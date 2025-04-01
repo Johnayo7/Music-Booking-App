@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Music_Booking_App.Subscribers</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <DockerfileContext>..\..</DockerfileContext>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.20.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Music-Booking-App.Core\Music-Booking-App.Core.csproj" />
+    <ProjectReference Include="..\Music-Booking-App.Data\Music-Booking-App.Data.csproj" />
+    <ProjectReference Include="..\Music-Booking-App.Models\Music-Booking-App.Models.csproj" />
+    <ProjectReference Include="..\Music-Booking-App.Services\Music-Booking-App.Services.csproj" />
+  </ItemGroup>
+
+</Project>

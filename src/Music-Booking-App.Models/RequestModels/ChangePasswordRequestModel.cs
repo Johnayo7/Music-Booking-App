@@ -1,0 +1,11 @@
+﻿
+
+namespace Music_Booking_App.Models.RequestModels
+{
+    public class ChangePasswordRequestModel
+    {
+        public string CurrentPassword { get; set; }
+        public string NewPassword { get; set; }
+        public string ConfirmPassword { get; set; }
+    }
+}

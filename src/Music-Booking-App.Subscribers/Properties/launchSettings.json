@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Hub-Service.Subscribers": {
+      "commandName": "Project"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker"
+    }
+  }
+}
