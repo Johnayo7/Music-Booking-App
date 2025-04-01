@@ -1,0 +1,74 @@
+name: Pull Request Build and Code Format 🏗️ 🏛️
+
+on:
+  pull_request:
+    branches:
+      - develop # Trigger only on pull requests to develop branch
+
+jobs:
+  build:
+    name: Validate Successful Build On Pull Request 🏗️ 🏛️
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository 🎣 🛒
+        uses: actions/checkout@v3
+
+      - name: Setup .NET Core SDK
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: List directory contents
+        run: |
+          echo "Root directory:"
+          ls -la
+          echo "Repository contents:"
+          ls -R
+
+      - name: Restore dependencies
+        run: dotnet restore Music-Booking-App.sln
+
+      - name: Build project
+        run: dotnet clean Music-Booking-App.sln && dotnet build Music-Booking-App.sln --configuration Release
+
+      - name: Install dotnet-format
+        run: dotnet tool install -g dotnet-format --version 5.1.250801
+
+      - name: Run code formatting check
+        run: dotnet format Music-Booking-App.sln --verify-no-changes
+
+      - name: Build migrations project
+        run: dotnet build src/Music-Booking-App.Migrations/Music-Booking-App.Migrations.csproj --configuration Release
+
+  format:
+    name: Code Formatting 🛠️
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup .NET Core SDK
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install dotnet-format tool
+        run: dotnet tool install -g dotnet-format --version 5.1.250801
+
+      - name: Run code formatting check
+        run: dotnet format Music-Booking-App.sln --verify-no-changes
+
+      - name: Run code formatting check without update
+        id: format
+        run: |
+          dotnet format Music-Booking-App.sln --verify-no-changes
+          if [ $? -eq 0 ]; then
+            echo "::set-output name=outcome::success"
+          else
+            echo "::set-output name=outcome::failure"
+          fi
+
+      - name: Send account status
+        if: always()
+        run: echo "Code formatting check ${{ steps.format.outputs.outcome }}"
