@@ -21,5 +21,11 @@ namespace Music_Booking_App.Services.BL.Interfaces
         Task<BaseResponse<ApprovalReviewViewModel>> ReviewBookingRequest(ApprovalReviewRequestModel request, ClaimsPrincipal userClaims);
         Task<BaseResponse<ApprovalReviewViewModel>> ReviewCreatedArtisteProfileRequest(ApprovalReviewRequestModel request, ClaimsPrincipal userClaims);
         Task<BaseResponse<ApprovalReviewViewModel>> ReviewCreatedEventRequest(ApprovalReviewRequestModel request, ClaimsPrincipal userClaims);
+
+        Task<BaseResponse<CreationViewModel>> BookingPayment(string bookingId, ClaimsPrincipal userClaims);
+        Task<BaseResponse<CreationViewModel>> TicketPurchase(TicketPurchaseRequestModel request, ClaimsPrincipal userClaims);
+        Task<BaseResponse<CreationViewModel>> VerifyPayment(string referenceId, PaymentType paymentType, ClaimsPrincipal userClaims);
+        Task<PaginatedResponse<List<BookingPaymentViewModel>>> GetBookingPaymentByRole(ClaimsPrincipal userClaims, PaymentStatus status, int pageSize, int pageNumber, string searchParam = null);
+        Task<PaginatedResponse<List<TicketPurchaseViewModel>>> GetTicketPurchaseByRole(ClaimsPrincipal userClaims, PaymentStatus status, int pageSize, int pageNumber, string searchParam = null);
     }
 }

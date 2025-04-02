@@ -1,15 +1,8 @@
-﻿using Music_Booking_App.Core.Attibutes;
-using System.ComponentModel.DataAnnotations.Schema;
-
-namespace Music_Booking_App.Models.Entiites
+﻿namespace Music_Booking_App.Models.ViewModels
 {
-    [Table("Tickets")]
-    [ReadTableName("public.\"Tickets\"")]
-    [WriteTableName("public.\"Tickets\"")]
-    public class Ticket : BaseEntity
+    public class TicketPurchaseViewModel
     {
-        public Guid EventId { get; set; }
-        public Guid BuyerId { get; set; }
+        public Guid Id { get; set; }
         public string EventName { get; set; }
         public string BuyerName { get; set; }
         public decimal AmountPaid { get; set; }
@@ -20,6 +13,5 @@ namespace Music_Booking_App.Models.Entiites
         public string ReferenceUrl { get; set; }
 
         public string OrganizerName { get; set; }
-        public Guid EventOrganizerId { get; set; }
     }
 }

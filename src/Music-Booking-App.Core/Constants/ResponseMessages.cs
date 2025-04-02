@@ -55,6 +55,7 @@ namespace Music_Booking_App.Core.Constants
         public const string SavingProductNotFound = "Savings product not found.";
         public const string NoRecordFound = "No record found.";
         public const string NotPendingApproval = "The request cannot be processed as it is not currently pending approval.";
+        public const string NotApproved = "The request cannot be processed as it has not been approved.";
         public const string DeserializationToNull = "Deserialization resulting in null.";
         //Postings
         public const string ErrorCallingPostings = "Error calling Postings Engine.";

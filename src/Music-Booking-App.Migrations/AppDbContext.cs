@@ -18,6 +18,7 @@ namespace Music_Booking_App.Migrations
         public DbSet<Event> Events { get; set; }
         public DbSet<Booking> Bookings { get; set; }
         public DbSet<Ticket> Tickets { get; set; }
+        public DbSet<BookingPayment> BookingPayments { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -48,6 +49,7 @@ namespace Music_Booking_App.Migrations
             ApplyTimeStampConversion(modelBuilder.Entity<Booking>());
             ApplyTimeStampConversion(modelBuilder.Entity<Event>());
             ApplyTimeStampConversion(modelBuilder.Entity<Ticket>());
+            ApplyTimeStampConversion(modelBuilder.Entity<BookingPayment>());
 
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {

@@ -19,10 +19,12 @@ using Music_Booking_App.Models.RequestModels;
 using Music_Booking_App.Services.Authentication;
 using Music_Booking_App.Services.Authentication.Implementations;
 using Music_Booking_App.Services.Authentication.Interfaces;
+using Music_Booking_App.Services.BL.ExternalProviders.Paystack;
 using Music_Booking_App.Services.BL.Implementations;
 using Music_Booking_App.Services.BL.Interfaces;
 using Music_Booking_App.Services.BL.InternalProviders.NotificationMs;
 using Music_Booking_App.Services.Helpers;
+using PayStack.Net;
 using Serilog;
 using Serilog.Events;
 
@@ -56,11 +58,6 @@ namespace Music_Booking_App.API
              .AddEnvironmentVariables()
             .AddUserSecrets<Program>();
 
-            /*  builder.WebHost.ConfigureKestrel(serverOptions =>
-              {
-                  serverOptions.Listen(IPAddress.Any, 3025);
-              });*/
-
             builder.Services.AddControllers();
 
             builder.Services.AddDbContext<AppDbContext>(options =>
@@ -70,12 +67,16 @@ namespace Music_Booking_App.API
             builder.Services.AddHttpContextAccessor();
             builder.Services.AddHttpClient();
 
+            builder.Services.AddSingleton<PayStackApi>(sp =>
+            new PayStackApi(builder.Configuration["Paystack:SecretKey"]));
+
             builder.Services.AddTransient<IReadExecuter, ReadExecuter>();
             builder.Services.AddTransient<IWriteExecuter, WriteExecuter>();
             builder.Services.AddTransient<IReadUtilities, ReadUtilities>();
             builder.Services.AddTransient<IWriteUtilities, WriteUtilities>();
             builder.Services.AddTransient<ICommon, Common>();
 
+            builder.Services.AddTransient<IPaystackService, PaystackService>();
             builder.Services.AddTransient<ITestService, TestService>();
             builder.Services.AddTransient<IAuthenticationService, AuthenticationService>();
             builder.Services.AddTransient<INotificationService, NotificationService>();
@@ -101,6 +102,8 @@ namespace Music_Booking_App.API
             builder.Services.AddTransient<IDapperCommandRepository<Booking>, DapperCommandRepository<Booking>>();
             builder.Services.AddTransient<IDapperQueryRepository<Ticket>, DapperQueryRepository<Ticket>>();
             builder.Services.AddTransient<IDapperCommandRepository<Ticket>, DapperCommandRepository<Ticket>>();
+            builder.Services.AddTransient<IDapperQueryRepository<BookingPayment>, DapperQueryRepository<BookingPayment>>();
+            builder.Services.AddTransient<IDapperCommandRepository<BookingPayment>, DapperCommandRepository<BookingPayment>>();
 
             builder.Services.AddTransient<ITestValidator, TestValidator>();
             builder.Services.AddTransient<IAuthenticationValidator, AuthenticationValidator>();
@@ -119,6 +122,7 @@ namespace Music_Booking_App.API
             builder.Services.AddTransient<IValidator<CreateEventRequestModel>, CreateEventRequestValidator>();
             builder.Services.AddTransient<IValidator<BookingRequestModel>, BookingRequestValidator>();
             builder.Services.AddTransient<IValidator<ApprovalReviewRequestModel>, ApprovalReviewRequestValidator>();
+            builder.Services.AddTransient<IValidator<TicketPurchaseRequestModel>, TicketPurchaseRequestModelValidator>();
 
             builder.Services.AddAutoMapper(typeof(AutoMapperProfile));
 

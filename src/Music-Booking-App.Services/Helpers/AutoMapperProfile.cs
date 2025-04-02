@@ -34,6 +34,8 @@ namespace Music_Booking_App.Services.Helpers
             CreateMap<Event, EventsViewModel>();
 
             CreateMap<Booking, BookingsViewModel>();
+            CreateMap<BookingPayment, BookingPaymentViewModel>();
+            CreateMap<Ticket, TicketPurchaseViewModel>();
 
             CreateMap<ApprovalReviewRequestModel, ApprovalReviewViewModel>()
            .ForMember(dest => dest.ReviewStatus, opt => opt.MapFrom(src => src.ReviewStatus.ToString()));
