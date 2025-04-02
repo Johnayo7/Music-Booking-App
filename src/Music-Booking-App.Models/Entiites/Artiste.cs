@@ -15,5 +15,10 @@ namespace Music_Booking_App.Models.Entiites
         public string AccountStatus { get; set; } = Enums.AccountStatus.Pending.ToString();
 
         public Guid? CreatedBy { get; set; }
+
+        public string Comment { get; set; }
+
+        public string ReviewerName { get; set; }
+        public Guid? ReviewerId { get; set; }
     }
 }

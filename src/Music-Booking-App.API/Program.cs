@@ -117,6 +117,8 @@ namespace Music_Booking_App.API
             builder.Services.AddTransient<IValidator<ChangePasswordRequestModel>, ChangePasswordRequestModelValidator>();
             builder.Services.AddTransient<IValidator<CreateArtisteRequestModel>, CreateArtisteRequestValidator>();
             builder.Services.AddTransient<IValidator<CreateEventRequestModel>, CreateEventRequestValidator>();
+            builder.Services.AddTransient<IValidator<BookingRequestModel>, BookingRequestValidator>();
+            builder.Services.AddTransient<IValidator<ApprovalReviewRequestModel>, ApprovalReviewRequestValidator>();
 
             builder.Services.AddAutoMapper(typeof(AutoMapperProfile));
 

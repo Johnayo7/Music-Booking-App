@@ -8,6 +8,8 @@ namespace Music_Booking_App.Services.Helpers
     {
         Task<ValidationResult> ValidateCreateArtisteProfileRequest(CreateArtisteRequestModel model);
         Task<ValidationResult> ValidateCreateEventRequest(CreateEventRequestModel model);
+        Task<ValidationResult> ValidateBookingRequest(BookingRequestModel model);
+        Task<ValidationResult> ValidateApprovalRequest(ApprovalReviewRequestModel model);
 
 
         public ValidationResultDto ValidateGuid(string id);

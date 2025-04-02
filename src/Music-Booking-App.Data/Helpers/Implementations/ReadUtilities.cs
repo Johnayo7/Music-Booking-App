@@ -78,8 +78,8 @@ namespace Music_Booking_App.Data.Helpers.Implementations
             criteria.TryAdd("IsDeleted", "false"); // Ensure non-deleted records
             var selectQuery = new StringBuilder($"SELECT * FROM {tableName} WHERE ");
 
-            string[] exactMatchColumns = { "IsDeleted", "Status", "AccountStatus", "EventStatus" };
-            string[] partialMatchWithCasting = { "Name", "Genre", "Location", "OrganizerName" };
+            string[] exactMatchColumns = { "IsDeleted", "Status", "AccountStatus", "EventStatus", "ArtisteId", "EventOrganizerId" };
+            string[] partialMatchWithCasting = { "Name", "Genre", "Location", "OrganizerName", "EventName", "ArtisteName" };
 
             var conditions = new List<string>();
             var partialMatchConditions = new List<string>();

@@ -45,6 +45,13 @@ namespace Music_Booking_App.API.Controllers.V1
             return HttpResponseHelper.GetHttpResponse(response);
         }
 
+        [HttpPost("ReviewBookingRequest")]
+        public async Task<IActionResult> ReviewBookingRequest(ApprovalReviewRequestModel model)
+        {
+            var response = await _bookingService.ReviewBookingRequest(model, User);
+            return HttpResponseHelper.GetHttpResponse(response);
+        }
+
 
     }
 }
