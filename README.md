@@ -1,4 +1,3 @@
-# Music-Booking-App
 # 🎵 Music Booking API
 
 ## Overview
