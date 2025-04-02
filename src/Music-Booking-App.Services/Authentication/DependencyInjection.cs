@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using Music_Booking_App.Services.Authentication.Configurations;
+using Music_Booking_App.Services.BL.ExternalProviders.Paystack;
 
 namespace Music_Booking_App.Services.Authentication
 {
@@ -15,8 +16,12 @@ namespace Music_Booking_App.Services.Authentication
         {
 
             services.AddOptions<JwtConfig>()
-          .BindConfiguration(nameof(JwtConfig))
-          .ValidateOnStart();
+              .BindConfiguration(nameof(JwtConfig))
+              .ValidateOnStart();
+
+            services.AddOptions<PaystackSettings>()
+            .BindConfiguration(nameof(PaystackSettings))
+            .ValidateOnStart();
 
             // services.Configure<SumSubConfig>(configuration.GetSection("SumSubConfig"));
 

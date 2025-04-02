@@ -7,6 +7,7 @@ using Music_Booking_App.Models.Enums;
 using Music_Booking_App.Models.RequestModels;
 using Music_Booking_App.Models.ViewModels;
 using Music_Booking_App.Services.Authentication.Interfaces;
+using Music_Booking_App.Services.BL.ExternalProviders.Paystack;
 using Music_Booking_App.Services.BL.Interfaces;
 using Music_Booking_App.Services.Helpers;
 using Newtonsoft.Json;
@@ -25,6 +26,9 @@ namespace Music_Booking_App.Services.BL.Implementations
         private readonly IDapperQueryRepository<Booking> _bookingQueryRepository;
         private readonly IDapperCommandRepository<Ticket> _ticketCommandRepository;
         private readonly IDapperQueryRepository<Ticket> _ticketQueryRepository;
+        private readonly IDapperCommandRepository<BookingPayment> _payBookingCommandRepository;
+        private readonly IDapperQueryRepository<BookingPayment> _payBookingQueryRepository;
+        private readonly IPaystackService _paystackService;
         private readonly IMapper _mapper;
         private readonly IBookingValidator _bookingValidator;
         private readonly IUserService _userService;
@@ -41,7 +45,10 @@ namespace Music_Booking_App.Services.BL.Implementations
                               IMapper mapper,
                               IBookingValidator bookingValidator,
                               IUserService userService,
-                              IOtpService otpService)
+                              IOtpService otpService,
+                              IDapperCommandRepository<BookingPayment> payBookingCommandRepository,
+                              IDapperQueryRepository<BookingPayment> payBookingQueryRepository,
+                              IPaystackService paystackService)
         {
             _artisteCommandRepository = artisteCommandRepository;
             _artisteQueryRepository = artisteQueryRepository;
@@ -55,6 +62,9 @@ namespace Music_Booking_App.Services.BL.Implementations
             _bookingValidator = bookingValidator;
             _userService = userService;
             _otpService = otpService;
+            _payBookingCommandRepository = payBookingCommandRepository;
+            _payBookingQueryRepository = payBookingQueryRepository;
+            _paystackService = paystackService;
         }
 
         public async Task<BaseResponse<CreationViewModel>> CreateArtisteProfileAsync(CreateArtisteRequestModel requestModel, ClaimsPrincipal userClaims)
@@ -1126,5 +1136,666 @@ namespace Music_Booking_App.Services.BL.Implementations
             }
         }
 
+        public async Task<BaseResponse<CreationViewModel>> BookingPayment(string bookingId, ClaimsPrincipal userClaims)
+        {
+            Log.Information(
+                 $"Starting creation process for model: {JsonConvert.SerializeObject(userClaims)}");
+
+            var validationResult = _bookingValidator.ValidateGuid(bookingId);
+            if (!validationResult.IsValid)
+                return BaseResponse<CreationViewModel>.Failure(validationResult.Message, StatusCodes.ModelValidationError);
+
+            try
+            {
+                var userId = userClaims.FindFirstValue(ClaimTypes.Sid);
+                var userEmail = userClaims.FindFirstValue(ClaimTypes.Email);
+                var userRole = userClaims.FindFirstValue(ClaimTypes.Role);
+                var userName = userClaims.FindFirstValue(ClaimTypes.Name);
+
+                if (userRole != UserCategory.EventOrganizer.ToString())
+                    return BaseResponse<CreationViewModel>
+                       .Failure(ResponseMessages.UnauthorizedAccess, StatusCodes.Forbidden);
+
+                var bookingExists = await _bookingQueryRepository.FindByIdAsync(Guid.Parse(bookingId));
+                if (bookingExists == null)
+                    return BaseResponse<CreationViewModel>
+                      .Failure(ResponseMessages.NoRecordFound, StatusCodes.NoRecordFound);
+
+                if (bookingExists.Status != ApprovalReview.Approved.ToString())
+                    return BaseResponse<CreationViewModel>
+                     .Failure(ResponseMessages.NotApproved, StatusCodes.BadRequest);
+
+                var paymentResponse = await _paystackService.PaymentInitialization(new()
+                {
+                    Amount = bookingExists.ProposedAmount,
+                    Email = userEmail
+                });
+
+                if (!paymentResponse.IsSuccess)
+                {
+                    return BaseResponse<CreationViewModel>
+                    .Failure(ResponseMessages.OperationUnsuccessful, StatusCodes.BadRequest);
+                }
+
+                var bookingPayment = new BookingPayment
+                {
+                    BookingId = bookingExists.Id,
+                    EventName = bookingExists.EventName,
+                    Amount = bookingExists.ProposedAmount,
+                    ReferenceId = paymentResponse.Reference,
+                    PaymentStatus = PaymentStatus.Pending.ToString(),
+                    FeeType = PaymentType.Booking.ToString(),
+                    ReferenceUrl = paymentResponse.AuthorizationUrl,
+                    OrganizerName = userName,
+                    EventOrganizerId = Guid.Parse(userId),
+                    ArtisteName = bookingExists.ArtisteName,
+                    ArtisteId = bookingExists.ArtisteId
+                };
+                await _payBookingCommandRepository.AddAsync(bookingPayment);
+                return BaseResponse<CreationViewModel>
+                                .Success(ResponseMessages.OperationSuccessful, StatusCodes.Successful, null);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"An error occurred: {ex.Message} \n StackTrace: {ex.StackTrace}");
+
+                return BaseResponse<CreationViewModel>.Failure(ResponseMessages.GeneralError, StatusCodes.FatalError);
+            }
+        }
+
+        public async Task<BaseResponse<CreationViewModel>> TicketPurchase(TicketPurchaseRequestModel request, ClaimsPrincipal userClaims)
+        {
+            Log.Information(
+                 $"Starting creation process for model: {JsonConvert.SerializeObject(userClaims)}");
+
+            var validationResult = await _bookingValidator.ValidateTicketPurchaseRequest(request);
+            if (!validationResult.IsValid)
+            {
+                return BaseResponse<CreationViewModel>
+                    .Failure(string.Join(" | ", validationResult.Errors), StatusCodes.ModelValidationError);
+            }
+
+            try
+            {
+                var userId = userClaims.FindFirstValue(ClaimTypes.Sid);
+                var userEmail = userClaims.FindFirstValue(ClaimTypes.Email);
+                var userRole = userClaims.FindFirstValue(ClaimTypes.Role);
+                var userName = userClaims.FindFirstValue(ClaimTypes.Name);
+
+                if (userRole == null)
+                    return BaseResponse<CreationViewModel>
+                       .Failure(ResponseMessages.UnauthorizedAccess, StatusCodes.Forbidden);
+
+                var eventExists = await _eventQueryRepository.FindByIdAsync(request.EventId);
+                if (eventExists == null)
+                    return BaseResponse<CreationViewModel>
+                      .Failure(ResponseMessages.NoRecordFound, StatusCodes.NoRecordFound);
+
+                if (eventExists.EventStatus != ApprovalReview.Approved.ToString())
+                    return BaseResponse<CreationViewModel>
+                     .Failure(ResponseMessages.NotApproved, StatusCodes.BadRequest);
+
+                decimal totalAmount = request.NoOfTickets * eventExists.TicketPrice;
+
+                var paymentResponse = await _paystackService.PaymentInitialization(new()
+                {
+                    Amount = totalAmount,
+                    Email = userEmail
+                });
+
+                if (!paymentResponse.IsSuccess)
+                {
+                    return BaseResponse<CreationViewModel>
+                    .Failure(ResponseMessages.OperationUnsuccessful, StatusCodes.BadRequest);
+                }
+
+                var ticket = new Ticket
+                {
+                    EventId = eventExists.Id,
+                    BuyerId = Guid.Parse(userId),
+                    EventName = eventExists.Name,
+                    BuyerName = userName,
+                    AmountPaid = totalAmount,
+                    PaymentStatus = PaymentStatus.Pending.ToString(),
+                    NoOfTickets = request.NoOfTickets,
+                    ReferenceId = paymentResponse.Reference,
+                    ReferenceUrl = paymentResponse.AuthorizationUrl,
+                    FeeType = PaymentType.Ticket.ToString(),
+                    EventOrganizerId = eventExists.EventOrganizerId,
+                    OrganizerName = eventExists.OrganizerName
+                };
+
+                await _ticketCommandRepository.AddAsync(ticket);
+                return BaseResponse<CreationViewModel>
+                                .Success(ResponseMessages.OperationSuccessful, StatusCodes.Successful, null);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"An error occurred: {ex.Message} \n StackTrace: {ex.StackTrace}");
+
+                return BaseResponse<CreationViewModel>.Failure(ResponseMessages.GeneralError, StatusCodes.FatalError);
+            }
+        }
+
+        public async Task<BaseResponse<CreationViewModel>> VerifyPayment(string referenceId, PaymentType paymentType, ClaimsPrincipal userClaims)
+        {
+            Log.Information(
+                 $"Starting creation process for model: {JsonConvert.SerializeObject(userClaims)}");
+
+            var validationResult = _bookingValidator.ValidateGuid(referenceId);
+            if (!validationResult.IsValid)
+                return BaseResponse<CreationViewModel>.Failure(validationResult.Message, StatusCodes.ModelValidationError);
+
+            try
+            {
+                var userId = userClaims.FindFirstValue(ClaimTypes.Sid);
+                var userEmail = userClaims.FindFirstValue(ClaimTypes.Email);
+                var userRole = userClaims.FindFirstValue(ClaimTypes.Role);
+                var userName = userClaims.FindFirstValue(ClaimTypes.Name);
+
+                if (paymentType == PaymentType.Ticket)
+                {
+                    var allowedRoles = new[] { UserCategory.EventOrganizer.ToString(), UserCategory.Admin.ToString() };
+                    if (!allowedRoles.Contains(userRole))
+                        return BaseResponse<CreationViewModel>
+                           .Failure(ResponseMessages.UnauthorizedAccess, StatusCodes.Forbidden);
+
+                    var filter = new Dictionary<string, string>
+                    {
+                        {nameof(Ticket.ReferenceId), referenceId}
+                    };
+
+                    var paymentExists = await _ticketQueryRepository.GetByDefaultAsync(filter);
+                    if (paymentExists == null)
+                        return BaseResponse<CreationViewModel>
+                                 .Failure(ResponseMessages.NoRecordFound, StatusCodes.NoRecordFound);
+
+                    var payStackResponse = await _paystackService.PaymentVerify(referenceId);
+                    if (!payStackResponse.Status)
+                    {
+                        return BaseResponse<CreationViewModel>
+                                  .Failure(ResponseMessages.OperationUnsuccessful, StatusCodes.BadRequest);
+                    }
+
+                    paymentExists.PaymentStatus = PaymentStatus.Paid.ToString();
+                    await _ticketCommandRepository.UpdateAsync(paymentExists);
+                }
+
+                if (paymentType == PaymentType.Booking)
+                {
+                    var allowedRoles = new[] { UserCategory.Artiste.ToString(), UserCategory.Admin.ToString() };
+                    if (!allowedRoles.Contains(userRole))
+                        return BaseResponse<CreationViewModel>
+                           .Failure(ResponseMessages.UnauthorizedAccess, StatusCodes.Forbidden);
+
+                    var filter = new Dictionary<string, string>
+                    {
+                        {nameof(Models.Entiites.BookingPayment.ReferenceId), referenceId}
+                    };
+
+                    var paymentExists = await _payBookingQueryRepository.GetByDefaultAsync(filter);
+                    if (paymentExists == null)
+                        return BaseResponse<CreationViewModel>
+                                 .Failure(ResponseMessages.NoRecordFound, StatusCodes.NoRecordFound);
+
+                    var payStackResponse = await _paystackService.PaymentVerify(referenceId);
+                    if (!payStackResponse.Status)
+                    {
+                        return BaseResponse<CreationViewModel>
+                                  .Failure(ResponseMessages.OperationUnsuccessful, StatusCodes.BadRequest);
+                    }
+
+                    paymentExists.PaymentStatus = PaymentStatus.Paid.ToString();
+                    await _payBookingCommandRepository.UpdateAsync(paymentExists);
+                }
+
+                return BaseResponse<CreationViewModel>
+                                .Success(ResponseMessages.OperationSuccessful, StatusCodes.Successful, null);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"An error occurred: {ex.Message} \n StackTrace: {ex.StackTrace}");
+
+                return BaseResponse<CreationViewModel>.Failure(ResponseMessages.GeneralError, StatusCodes.FatalError);
+            }
+        }
+
+        public async Task<PaginatedResponse<List<BookingPaymentViewModel>>> GetBookingPaymentByRole(ClaimsPrincipal userClaims, PaymentStatus status, int pageSize, int pageNumber, string searchParam = null)
+        {
+            try
+            {
+                pageNumber = pageNumber <= 0 ? 1 : pageNumber;
+                pageSize = pageSize <= 0 ? 20 : pageSize;
+
+                var userRole = userClaims.FindFirstValue(ClaimTypes.Role);
+                var userId = userClaims.FindFirstValue(ClaimTypes.Sid);
+
+                IEnumerable<BookingPayment> getBookingPayments;
+                int totalCount;
+
+                if (userRole == UserCategory.Artiste.ToString())
+                {
+                    if (status == 0 && searchParam == null)
+                    {
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                       // {nameof(Company.CreationDate), searchParam },
+                                        {nameof(Models.Entiites.BookingPayment.ArtisteId), userId }
+                                    };
+
+
+                        getBookingPayments = await _payBookingQueryRepository.GetByAsync(criteria, pageSize, pageNumber);
+                        totalCount = await _payBookingQueryRepository.GetCountAsync(criteria);
+
+                    }
+                    else if (status == 0 && searchParam != null)
+                    {
+                        //var dateOnly = searchParam.Date.ToString("yyyy-MM-dd");
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                        //{nameof(Booking.ArtisteName), searchParam },
+                                        {nameof(Models.Entiites.BookingPayment.EventName), searchParam },
+                                        {nameof(Models.Entiites.BookingPayment.OrganizerName), searchParam },
+                                        {nameof(Models.Entiites.BookingPayment.ArtisteId), userId }
+                                    };
+
+                        getBookingPayments = await _payBookingQueryRepository.GetByAsyncForPartialMatch(criteria, pageSize, pageNumber);
+                        totalCount = await _payBookingQueryRepository.GetCountAsync(criteria);
+                    }
+                    else if (status > 0 && searchParam == null)
+                    {
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                        {nameof(Models.Entiites.BookingPayment.PaymentStatus), status.ToString() },
+                                        {nameof(Models.Entiites.BookingPayment.ArtisteId), userId }
+                                    };
+
+                        getBookingPayments = await _payBookingQueryRepository.GetByAsync(criteria, pageSize, pageNumber);
+                        totalCount = await _payBookingQueryRepository.GetCountAsync(criteria);
+                    }
+                    else
+                    {
+                        //var dateOnly = searchParam.Date.ToString("yyyy-MM-dd"); 
+
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                        {nameof(Models.Entiites.BookingPayment.PaymentStatus), status.ToString() },
+                                        {nameof(Models.Entiites.BookingPayment.EventName), searchParam },
+                                        {nameof(Models.Entiites.BookingPayment.OrganizerName), searchParam },
+                                        {nameof(Models.Entiites.BookingPayment.ArtisteId), userId }
+                                    };
+
+                        getBookingPayments = await _payBookingQueryRepository.GetByAsyncForPartialMatch(criteria, pageSize, pageNumber);
+                        totalCount = await _payBookingQueryRepository.GetCountAsync(criteria);
+                    }
+
+                    var bookingView = new List<BookingPaymentViewModel>();
+                    foreach (var booking in getBookingPayments)
+                    {
+                        //var bookingDetails = await _bookingQueryRepository.FindByIdAsync(booking.Id);
+                        var view = _mapper.Map<BookingPaymentViewModel>(booking);
+
+                        bookingView.Add(view);
+                    }
+                    return PaginatedResponse<List<BookingPaymentViewModel>>
+                        .Success(ResponseMessages.OperationSuccessful, StatusCodes.Successful,
+                       bookingView, totalCount);
+                }
+
+                if (userRole == UserCategory.EventOrganizer.ToString())
+                {
+                    if (status == 0 && searchParam == null)
+                    {
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                       // {nameof(Company.CreationDate), searchParam },
+                                        {nameof(Models.Entiites.BookingPayment.EventOrganizerId), userId }
+                                    };
+
+
+                        getBookingPayments = await _payBookingQueryRepository.GetByAsync(criteria, pageSize, pageNumber);
+                        totalCount = await _payBookingQueryRepository.GetCountAsync(criteria);
+
+                    }
+                    else if (status == 0 && searchParam != null)
+                    {
+                        //var dateOnly = searchParam.Date.ToString("yyyy-MM-dd");
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                        {nameof(Models.Entiites.BookingPayment.ArtisteName), searchParam },
+                                        {nameof(Models.Entiites.BookingPayment.EventName), searchParam },
+                                        {nameof(Models.Entiites.BookingPayment.EventOrganizerId), userId }
+                                    };
+
+                        getBookingPayments = await _payBookingQueryRepository.GetByAsyncForPartialMatch(criteria, pageSize, pageNumber);
+                        totalCount = await _payBookingQueryRepository.GetCountAsync(criteria);
+                    }
+                    else if (status > 0 && searchParam == null)
+                    {
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                        {nameof(Models.Entiites.BookingPayment.PaymentStatus), status.ToString() },
+                                        {nameof(Models.Entiites.BookingPayment.EventOrganizerId), userId }
+                                    };
+
+                        getBookingPayments = await _payBookingQueryRepository.GetByAsync(criteria, pageSize, pageNumber);
+                        totalCount = await _payBookingQueryRepository.GetCountAsync(criteria);
+                    }
+                    else
+                    {
+                        //var dateOnly = searchParam.Date.ToString("yyyy-MM-dd"); 
+
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                        {nameof(Models.Entiites.BookingPayment.PaymentStatus), status.ToString() },
+                                        {nameof(Models.Entiites.BookingPayment.ArtisteName), searchParam },
+                                        {nameof(Models.Entiites.BookingPayment.EventName), searchParam },
+                                        {nameof(Models.Entiites.BookingPayment.EventOrganizerId), userId }
+                                    };
+
+                        getBookingPayments = await _payBookingQueryRepository.GetByAsyncForPartialMatch(criteria, pageSize, pageNumber);
+                        totalCount = await _payBookingQueryRepository.GetCountAsync(criteria);
+                    }
+
+                    var bookingView = new List<BookingPaymentViewModel>();
+                    foreach (var booking in getBookingPayments)
+                    {
+                        //var bookingDetails = await _bookingQueryRepository.FindByIdAsync(booking.Id);
+                        var view = _mapper.Map<BookingPaymentViewModel>(booking);
+
+                        bookingView.Add(view);
+                    }
+                    return PaginatedResponse<List<BookingPaymentViewModel>>
+                        .Success(ResponseMessages.OperationSuccessful, StatusCodes.Successful,
+                       bookingView, totalCount);
+                }
+
+                if (userRole == UserCategory.Admin.ToString())
+                {
+                    if (status == 0 && searchParam == null)
+                    {
+                        getBookingPayments = await _payBookingQueryRepository.GetAllAsync(pageSize, pageNumber);
+                        totalCount = await _payBookingQueryRepository.GetCountAsync();
+                    }
+                    else if (status == 0 && searchParam != null)
+                    {
+                        //var dateOnly = searchParam.Date.ToString("yyyy-MM-dd");
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                        {nameof(Models.Entiites.BookingPayment.ArtisteName), searchParam },
+                                        {nameof(Models.Entiites.BookingPayment.EventName), searchParam },
+                                        {nameof(Models.Entiites.BookingPayment.OrganizerName), searchParam }
+                                    };
+
+                        getBookingPayments = await _payBookingQueryRepository.GetByAsyncForPartialMatch(criteria, pageSize, pageNumber);
+                        totalCount = await _payBookingQueryRepository.GetCountAsync(criteria);
+                    }
+                    else if (status > 0 && searchParam == null)
+                    {
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                        {nameof(Models.Entiites.BookingPayment.PaymentStatus), status.ToString() }
+                                    };
+
+                        getBookingPayments = await _payBookingQueryRepository.GetByAsync(criteria, pageSize, pageNumber);
+                        totalCount = await _bookingQueryRepository.GetCountAsync(criteria);
+                    }
+                    else
+                    {
+                        //var dateOnly = searchParam.Date.ToString("yyyy-MM-dd"); 
+
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                        {nameof(Models.Entiites.BookingPayment.PaymentStatus), status.ToString() },
+                                        {nameof(Models.Entiites.BookingPayment.ArtisteName), searchParam },
+                                        {nameof(Models.Entiites.BookingPayment.EventName), searchParam },
+                                        {nameof(Models.Entiites.BookingPayment.OrganizerName), searchParam }
+                                    };
+
+                        getBookingPayments = await _payBookingQueryRepository.GetByAsyncForPartialMatch(criteria, pageSize, pageNumber);
+                        totalCount = await _payBookingQueryRepository.GetCountAsync(criteria);
+                    }
+
+                    var bookingView = new List<BookingPaymentViewModel>();
+                    foreach (var booking in getBookingPayments)
+                    {
+                        //var bookingDetails = await _bookingQueryRepository.FindByIdAsync(booking.Id);
+                        var view = _mapper.Map<BookingPaymentViewModel>(booking);
+
+                        bookingView.Add(view);
+                    }
+                    return PaginatedResponse<List<BookingPaymentViewModel>>
+                        .Success(ResponseMessages.OperationSuccessful, StatusCodes.Successful,
+                       bookingView, totalCount);
+                }
+
+                return PaginatedResponse<List<BookingPaymentViewModel>>
+                       .Failure(ResponseMessages.UnauthorizedAccess, StatusCodes.Forbidden);
+
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"An error occurred: {ex.Message} \n StackTrace: {ex.StackTrace}");
+                return PaginatedResponse<List<BookingPaymentViewModel>>
+                    .Failure(ResponseMessages.InternalServerError, StatusCodes.GeneralError);
+            }
+        }
+
+        public async Task<PaginatedResponse<List<TicketPurchaseViewModel>>> GetTicketPurchaseByRole(ClaimsPrincipal userClaims, PaymentStatus status, int pageSize, int pageNumber, string searchParam = null)
+        {
+            try
+            {
+                pageNumber = pageNumber <= 0 ? 1 : pageNumber;
+                pageSize = pageSize <= 0 ? 20 : pageSize;
+
+                var userRole = userClaims.FindFirstValue(ClaimTypes.Role);
+                var userId = userClaims.FindFirstValue(ClaimTypes.Sid);
+
+                IEnumerable<Ticket> getTicketPayments;
+                int totalCount;
+
+                if (userRole == UserCategory.RegularUser.ToString() || userRole == UserCategory.Artiste.ToString())
+                {
+                    if (status == 0 && searchParam == null)
+                    {
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                       // {nameof(Company.CreationDate), searchParam },
+                                        {nameof(Ticket.BuyerId), userId }
+                                    };
+
+                        getTicketPayments = await _ticketQueryRepository.GetByAsync(criteria, pageSize, pageNumber);
+                        totalCount = await _ticketQueryRepository.GetCountAsync(criteria);
+                    }
+                    else if (status == 0 && searchParam != null)
+                    {
+                        //var dateOnly = searchParam.Date.ToString("yyyy-MM-dd");
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                        //{nameof(Booking.ArtisteName), searchParam },
+                                        {nameof(Ticket.EventName), searchParam },
+                                        {nameof(Ticket.OrganizerName), searchParam },
+                                        {nameof(Ticket.BuyerId), userId }
+                                    };
+
+                        getTicketPayments = await _ticketQueryRepository.GetByAsyncForPartialMatch(criteria, pageSize, pageNumber);
+                        totalCount = await _ticketQueryRepository.GetCountAsync(criteria);
+                    }
+                    else if (status > 0 && searchParam == null)
+                    {
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                        {nameof(Ticket.PaymentStatus), status.ToString() },
+                                        {nameof(Ticket.BuyerId), userId }
+                                    };
+
+                        getTicketPayments = await _ticketQueryRepository.GetByAsync(criteria, pageSize, pageNumber);
+                        totalCount = await _ticketQueryRepository.GetCountAsync(criteria);
+                    }
+                    else
+                    {
+                        //var dateOnly = searchParam.Date.ToString("yyyy-MM-dd"); 
+
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                        {nameof(Ticket.PaymentStatus), status.ToString() },
+                                        {nameof(Ticket.EventName), searchParam },
+                                        {nameof(Ticket.OrganizerName), searchParam },
+                                        {nameof(Ticket.BuyerId), userId }
+                                    };
+
+                        getTicketPayments = await _ticketQueryRepository.GetByAsyncForPartialMatch(criteria, pageSize, pageNumber);
+                        totalCount = await _ticketQueryRepository.GetCountAsync(criteria);
+                    }
+
+                    var bookingView = new List<TicketPurchaseViewModel>();
+                    foreach (var booking in getTicketPayments)
+                    {
+                        //var bookingDetails = await _bookingQueryRepository.FindByIdAsync(booking.Id);
+                        var view = _mapper.Map<TicketPurchaseViewModel>(booking);
+
+                        bookingView.Add(view);
+                    }
+                    return PaginatedResponse<List<TicketPurchaseViewModel>>
+                        .Success(ResponseMessages.OperationSuccessful, StatusCodes.Successful,
+                       bookingView, totalCount);
+                }
+
+                if (userRole == UserCategory.EventOrganizer.ToString())
+                {
+                    if (status == 0 && searchParam == null)
+                    {
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                       // {nameof(Company.CreationDate), searchParam },
+                                        {nameof(Ticket.EventOrganizerId), userId }
+                                    };
+
+                        getTicketPayments = await _ticketQueryRepository.GetByAsync(criteria, pageSize, pageNumber);
+                        totalCount = await _ticketQueryRepository.GetCountAsync(criteria);
+                    }
+                    else if (status == 0 && searchParam != null)
+                    {
+                        //var dateOnly = searchParam.Date.ToString("yyyy-MM-dd");
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                        {nameof(Ticket.BuyerName), searchParam },
+                                        {nameof(Ticket.EventName), searchParam },
+                                        {nameof(Ticket.EventOrganizerId), userId }
+                                    };
+
+                        getTicketPayments = await _ticketQueryRepository.GetByAsyncForPartialMatch(criteria, pageSize, pageNumber);
+                        totalCount = await _ticketQueryRepository.GetCountAsync(criteria);
+                    }
+                    else if (status > 0 && searchParam == null)
+                    {
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                        {nameof(Ticket.PaymentStatus), status.ToString() },
+                                        {nameof(Ticket.EventOrganizerId), userId }
+                                    };
+
+                        getTicketPayments = await _ticketQueryRepository.GetByAsync(criteria, pageSize, pageNumber);
+                        totalCount = await _ticketQueryRepository.GetCountAsync(criteria);
+                    }
+                    else
+                    {
+                        //var dateOnly = searchParam.Date.ToString("yyyy-MM-dd"); 
+
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                        {nameof(Ticket.PaymentStatus), status.ToString() },
+                                        {nameof(Ticket.BuyerName), searchParam },
+                                        {nameof(Ticket.EventName), searchParam },
+                                        {nameof(Ticket.EventOrganizerId), userId }
+                                    };
+
+                        getTicketPayments = await _ticketQueryRepository.GetByAsyncForPartialMatch(criteria, pageSize, pageNumber);
+                        totalCount = await _ticketQueryRepository.GetCountAsync(criteria);
+                    }
+
+                    var bookingView = new List<TicketPurchaseViewModel>();
+                    foreach (var booking in getTicketPayments)
+                    {
+                        //var bookingDetails = await _bookingQueryRepository.FindByIdAsync(booking.Id);
+                        var view = _mapper.Map<TicketPurchaseViewModel>(booking);
+
+                        bookingView.Add(view);
+                    }
+                    return PaginatedResponse<List<TicketPurchaseViewModel>>
+                        .Success(ResponseMessages.OperationSuccessful, StatusCodes.Successful,
+                       bookingView, totalCount);
+                }
+
+                if (userRole == UserCategory.Admin.ToString())
+                {
+                    if (status == 0 && searchParam == null)
+                    {
+                        getTicketPayments = await _ticketQueryRepository.GetAllAsync(pageSize, pageNumber);
+                        totalCount = await _ticketQueryRepository.GetCountAsync();
+                    }
+                    else if (status == 0 && searchParam != null)
+                    {
+                        //var dateOnly = searchParam.Date.ToString("yyyy-MM-dd");
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                        {nameof(Ticket.BuyerName), searchParam },
+                                        {nameof(Ticket.EventName), searchParam },
+                                        {nameof(Ticket.OrganizerName), searchParam }
+                                    };
+
+                        getTicketPayments = await _ticketQueryRepository.GetByAsyncForPartialMatch(criteria, pageSize, pageNumber);
+                        totalCount = await _ticketQueryRepository.GetCountAsync(criteria);
+                    }
+                    else if (status > 0 && searchParam == null)
+                    {
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                        {nameof(Ticket.PaymentStatus), status.ToString() }
+                                    };
+
+                        getTicketPayments = await _ticketQueryRepository.GetByAsync(criteria, pageSize, pageNumber);
+                        totalCount = await _ticketQueryRepository.GetCountAsync(criteria);
+                    }
+                    else
+                    {
+                        //var dateOnly = searchParam.Date.ToString("yyyy-MM-dd"); 
+
+                        var criteria = new Dictionary<string, string>
+                                    {
+                                        {nameof(Ticket.PaymentStatus), status.ToString() },
+                                        {nameof(Ticket.BuyerName), searchParam },
+                                        {nameof(Ticket.EventName), searchParam },
+                                        {nameof(Ticket.OrganizerName), searchParam }
+                                    };
+
+                        getTicketPayments = await _ticketQueryRepository.GetByAsyncForPartialMatch(criteria, pageSize, pageNumber);
+                        totalCount = await _ticketQueryRepository.GetCountAsync(criteria);
+                    }
+
+                    var bookingView = new List<TicketPurchaseViewModel>();
+                    foreach (var booking in getTicketPayments)
+                    {
+                        //var bookingDetails = await _bookingQueryRepository.FindByIdAsync(booking.Id);
+                        var view = _mapper.Map<TicketPurchaseViewModel>(booking);
+
+                        bookingView.Add(view);
+                    }
+                    return PaginatedResponse<List<TicketPurchaseViewModel>>
+                        .Success(ResponseMessages.OperationSuccessful, StatusCodes.Successful,
+                       bookingView, totalCount);
+                }
+
+                return PaginatedResponse<List<TicketPurchaseViewModel>>
+                       .Failure(ResponseMessages.UnauthorizedAccess, StatusCodes.Forbidden);
+
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"An error occurred: {ex.Message} \n StackTrace: {ex.StackTrace}");
+                return PaginatedResponse<List<TicketPurchaseViewModel>>
+                    .Failure(ResponseMessages.InternalServerError, StatusCodes.GeneralError);
+            }
+        }
     }
 }
