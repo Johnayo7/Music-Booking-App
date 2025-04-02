@@ -29,8 +29,15 @@ namespace Music_Booking_App.Services.Helpers
             CreateMap<CreateEventRequestModel, Event>();
             CreateMap<Artiste, ArtistesViewModel>();
             CreateMap<Artiste, ArtisteDetailViewModel>();
+
             CreateMap<Event, EventDetailsViewModel>();
             CreateMap<Event, EventsViewModel>();
+
+            CreateMap<Booking, BookingsViewModel>();
+
+            CreateMap<ApprovalReviewRequestModel, ApprovalReviewViewModel>()
+           .ForMember(dest => dest.ReviewStatus, opt => opt.MapFrom(src => src.ReviewStatus.ToString()));
+
         }
     }
 }

@@ -4,6 +4,7 @@
     {
         RegularUser = 1,
         EventOrganizer,
-        Artiste
+        Artiste,
+        Admin
     }
 }

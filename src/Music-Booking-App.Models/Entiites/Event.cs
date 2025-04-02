@@ -16,7 +16,11 @@ namespace Music_Booking_App.Models.Entiites
         public string OrganizerName { get; set; }
 
         public string EventStatus { get; set; } = AccountStatus.Pending.ToString();
+        public string Comment { get; set; }
 
         public Guid EventOrganizerId { get; set; }
+
+        public string ReviewerName { get; set; }
+        public Guid? ReviewerId { get; set; }
     }
 }

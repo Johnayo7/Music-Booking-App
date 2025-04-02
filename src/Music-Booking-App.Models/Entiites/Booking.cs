@@ -1,4 +1,5 @@
 ﻿using Music_Booking_App.Core.Attibutes;
+using Music_Booking_App.Models.Enums;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Music_Booking_App.Models.Entiites
@@ -15,6 +16,7 @@ namespace Music_Booking_App.Models.Entiites
         public string EventName { get; set; }
         public string OrganizerName { get; set; }
         public decimal ProposedAmount { get; set; }
-        public string Status { get; set; }
+        public string Status { get; set; } = AccountStatus.Pending.ToString();
+        public string Comment { get; set; }
     }
 }

@@ -9,17 +9,27 @@ namespace Music_Booking_App.Services.Helpers
     {
         private readonly IValidator<CreateArtisteRequestModel> _createArtisteRequestValidator;
         private readonly IValidator<CreateEventRequestModel> _createEventRequestValidator;
+        private readonly IValidator<BookingRequestModel> _bookingRequestValidator;
+        private readonly IValidator<ApprovalReviewRequestModel> _approvalReviewValidator;
 
-        public BookingValidator(IValidator<CreateArtisteRequestModel> createartisteRequestValidator, IValidator<CreateEventRequestModel> createEventRequestValidator)
+        public BookingValidator(IValidator<CreateArtisteRequestModel> createartisteRequestValidator, IValidator<CreateEventRequestModel> createEventRequestValidator, IValidator<BookingRequestModel> bookingRequestValidator, IValidator<ApprovalReviewRequestModel> approvalReviewValidator)
         {
             _createArtisteRequestValidator = createartisteRequestValidator;
             _createEventRequestValidator = createEventRequestValidator;
+            _bookingRequestValidator = bookingRequestValidator;
+            _approvalReviewValidator = approvalReviewValidator;
         }
         public async Task<ValidationResult> ValidateCreateArtisteProfileRequest(CreateArtisteRequestModel model)
            => await _createArtisteRequestValidator.ValidateAsync(model);
 
         public async Task<ValidationResult> ValidateCreateEventRequest(CreateEventRequestModel model)
            => await _createEventRequestValidator.ValidateAsync(model);
+
+        public async Task<ValidationResult> ValidateBookingRequest(BookingRequestModel model)
+           => await _bookingRequestValidator.ValidateAsync(model);
+
+        public async Task<ValidationResult> ValidateApprovalRequest(ApprovalReviewRequestModel model)
+           => await _approvalReviewValidator.ValidateAsync(model);
 
         public ValidationResultDto ValidateGuid(string id)
         {
